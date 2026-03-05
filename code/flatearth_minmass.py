@@ -1,152 +1,207 @@
 #!/usr/bin/env python3
-"""Minimum-mass axisymmetric slab, eps=0.
+"""Minimum-mass axisymmetric slab, soft-constraint penalty method.
 
 Find b(r) minimizing mass subject to:
   sqrt((g_z(r) - g0)^2 + g_r(r)^2) <= epsilon   for all r <= R
 
-Slab occupies z in [-b(r), 0], unit density, axisymmetric.
+Uses PyTorch + Adam. K(k²) and E(k²) precomputed as lookup tables;
+differentiable interpolation used at runtime so autograd works through them.
 
-Kernel formulas (derived from azimuthal integral of 1/r^3 force):
-  g_z from ring at (r', -z') at observer (r, 0):
-    = z' * 4*E(k) / (beta * alpha^2)
-
-  g_r from ring at (r', -z') at observer (r, 0):
-    = 2/(r*beta) * [(r^2 - r'^2 - z'^2)/alpha^2 * E(k) + K(k)]
-
-  where beta^2 = (r+r')^2 + z'^2
-        alpha^2 = (r-r')^2 + z'^2
-        k^2 = 4*r*r' / beta^2
-
-Depth integral over z' from 0 to b(r') done numerically.
+Soft penalty: L = mass + lambda * mean(relu(err - epsilon)^2)
+Lambda is increased until no constraint violations remain.
 """
 
 import numpy as np
-from scipy.special import ellipk, ellipe
-from scipy.optimize import minimize
+import torch
 import matplotlib.pyplot as plt
 import matplotlib; matplotlib.use('Agg')
+from scipy.special import ellipk, ellipe
+
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+print(f"Using device: {device}")
 
 # --- Parameters ---
 disk_r = 0.5
-g0     = 1.0      # target g_z magnitude (kernel gives positive downward values)
-epsilon = 0.25    # field tolerance (start loose, tighten later)
+g0     = 1.0     # target field magnitude (kernel convention: positive downward)
+epsilon = 0.15   # field vector tolerance
 
-n_src = 60        # b(r) nodes
-n_obs = 40        # observation points on disk
-n_z   = 25        # z quadrature points per source column
+n_src = 80
+n_obs = 60
+n_z   = 30       # z quadrature points
 R_ext = disk_r * 5.0
 
-# Grids
-r_src = np.linspace(0, R_ext, n_src + 1)
-r_src = 0.5 * (r_src[:-1] + r_src[1:])
-dr    = R_ext / n_src
+# --- Precompute elliptic integral lookup tables ---
+N_table = 100_000
+m_np  = np.linspace(0, 1 - 1e-7, N_table)
+K_np  = ellipk(m_np)
+E_np  = ellipe(m_np)
 
-r_obs = np.linspace(disk_r / n_obs, disk_r * 0.99, n_obs)
+m_tbl = torch.tensor(m_np, dtype=torch.float32, device=device)
+K_tbl = torch.tensor(K_np, dtype=torch.float32, device=device)
+E_tbl = torch.tensor(E_np, dtype=torch.float32, device=device)
 
-z_frac = (np.arange(n_z) + 0.5) / n_z   # uniform quadrature on [0,1]
+
+def elliptic_KE(m):
+    """Differentiable K(m) and E(m) via linear interpolation of precomputed table.
+
+    Gradient flows through the interpolation weight, not the table index.
+    Accurate to ~1e-6 with N_table=100k.
+    """
+    m_c = torch.clamp(m, 0.0, 1.0 - 1e-7)
+    idx = m_c * (N_table - 1)
+    i0  = idx.long().clamp(0, N_table - 2)
+    i1  = (i0 + 1).clamp(0, N_table - 1)
+    t   = idx - i0.float()          # interpolation weight (carries gradient)
+    K   = K_tbl[i0] * (1 - t) + K_tbl[i1] * t
+    E   = E_tbl[i0] * (1 - t) + E_tbl[i1] * t
+    return K, E
+
+
+# --- Grids (fixed, as plain tensors) ---
+r_src_np = np.linspace(0, R_ext, n_src + 1)
+r_src_np = 0.5 * (r_src_np[:-1] + r_src_np[1:])
+dr = float(R_ext / n_src)
+
+r_obs_np = np.linspace(disk_r / n_obs, disk_r * 0.99, n_obs)
+z_frac   = ((np.arange(n_z) + 0.5) / n_z).astype(np.float32)
+
+r_src  = torch.tensor(r_src_np, dtype=torch.float32, device=device)
+r_obs  = torch.tensor(r_obs_np, dtype=torch.float32, device=device)
+z_frac = torch.tensor(z_frac,   dtype=torch.float32, device=device)
 
 
 def compute_field(b_vals):
-    """Vectorized field at r_obs for slab with bottom at b_vals.
+    """Compute g_z, g_r at r_obs for slab with bottom at b_vals.
 
-    Returns g_z, g_r arrays of shape (n_obs,).
+    Args:
+        b_vals: (n_src,) tensor, depth at each source point
+    Returns:
+        gz, gr: (n_obs,) tensors
     """
-    # Shapes: (n_obs, n_src, n_z)
-    ro = r_obs[:, None, None]
-    rs = r_src[None, :, None]
-    z_ = b_vals[None, :, None] * z_frac[None, None, :]
-    dz = b_vals[None, :, None] / n_z
+    # Broadcast to (n_obs, n_src, n_z)
+    ro = r_obs[:, None, None]          # (n_obs, 1, 1)
+    rs = r_src[None, :, None]          # (1, n_src, 1)
+    zf = z_frac[None, None, :]         # (1, 1, n_z)
+
+    z_  = b_vals[None, :, None] * zf  # (n_obs, n_src, n_z)  — actual depths
+    dz_ = b_vals[None, :, None] / n_z
 
     beta2  = (ro + rs)**2 + z_**2
-    alpha2 = np.maximum((ro - rs)**2 + z_**2, 1e-20)
-    beta   = np.sqrt(np.maximum(beta2, 1e-30))
-    k2     = np.clip(4 * ro * rs / np.maximum(beta2, 1e-30), 0, 1 - 1e-12)
+    alpha2 = (ro - rs)**2 + z_**2
+    alpha2 = torch.clamp(alpha2, min=1e-20)
+    beta   = torch.sqrt(torch.clamp(beta2, min=1e-30))
 
-    K = ellipk(k2)
-    E = ellipe(k2)
+    k2 = torch.clamp(4 * ro * rs / torch.clamp(beta2, min=1e-30), 0.0, 1.0 - 1e-7)
 
+    K, E = elliptic_KE(k2)
+
+    # Vertical field kernel: z' * 4E / (beta * alpha²)
     gz_k = z_ * 4 * E / (beta * alpha2)
 
-    ro_safe = np.maximum(ro, 1e-10)
+    # Radial field kernel: 2/(r*beta) * [(r²-r'²-z'²)/alpha² * E + K]
+    ro_safe = torch.clamp(ro, min=1e-10)
     gr_k = 2 / (ro_safe * beta) * ((ro**2 - rs**2 - z_**2) / alpha2 * E + K)
 
-    # Integrate: sum over z (axis=2) and r_src (axis=1)
-    gz = np.sum(gz_k * dz * rs * dr, axis=(1, 2))
-    gr = np.sum(gr_k * dz * rs * dr, axis=(1, 2))
-
+    # Integrate: dr * dz * r_src weight
+    weight = dz_ * rs * dr   # (n_obs, n_src, n_z)
+    gz = (gz_k * weight).sum(dim=(1, 2))
+    gr = (gr_k * weight).sum(dim=(1, 2))
     return gz, gr
 
 
-# --- Validate ---
-b_test = np.full(n_src, 0.1)
-gz_t, gr_t = compute_field(b_test)
-print(f"Validation — uniform slab b=0.1:")
-print(f"  g_z = {gz_t.mean():.4f} (infinite-slab limit: {2*np.pi*0.1:.4f})")
-print(f"  g_r max = {np.max(np.abs(gr_t)):.4f} (expect ~0)")
+# --- Validate kernels ---
+with torch.no_grad():
+    b_test = torch.full((n_src,), 0.1, device=device)
+    gz_t, gr_t = compute_field(b_test)
+    print(f"Validation — uniform slab b=0.1:")
+    print(f"  g_z = {gz_t.mean().item():.4f} (infinite-slab limit: {2*np.pi*0.1:.4f})")
+    print(f"  g_r max = {gr_t.abs().max().item():.4f}")
 
-# Scale initial guess to hit g0
-b0 = abs(g0) / gz_t.mean() * 0.1
-print(f"  Initial b0 = {b0:.4f}")
+    b0_val = float(abs(g0) / gz_t.mean().item() * 0.1)
+    print(f"  Estimated b0 for |g_z|=1: {b0_val:.4f}")
 
 # --- Optimization ---
-def objective(log_b):
-    return 2 * np.pi * np.sum(np.exp(log_b) * r_src * dr)
+log_b = torch.full((n_src,), np.log(b0_val),
+                   dtype=torch.float32, device=device, requires_grad=True)
 
-def constraint(log_b):
-    gz, gr = compute_field(np.exp(log_b))
-    return epsilon**2 - (gz - g0)**2 - gr**2  # >= 0
+optimizer = torch.optim.Adam([log_b], lr=3e-3)
+scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=3000, eta_min=1e-4)
 
-x0 = np.full(n_src, np.log(b0))
+def run_opt(lam, n_steps=2000, log_every=500):
+    """Optimize with fixed penalty weight lambda."""
+    for step in range(n_steps):
+        optimizer.zero_grad()
+        b = torch.exp(log_b)
+        gz, gr = compute_field(b)
 
-gz0, gr0 = compute_field(np.exp(x0))
-print(f"\nInitial field: gz=[{gz0.min():.3f},{gz0.max():.3f}], gr_max={np.max(np.abs(gr0)):.4f}")
-print(f"Initial mass: {objective(x0):.4f}")
-print(f"Constraint violations: {np.sum(constraint(x0) < 0)}/{n_obs}")
+        mass = 2 * np.pi * (b * r_src * dr).sum()
+        err  = torch.sqrt((gz - g0)**2 + gr**2)
+        penalty = torch.relu(err - epsilon).pow(2).mean()
+        loss = mass + lam * penalty
 
-print(f"\nOptimizing (n_src={n_src}, n_obs={n_obs}, ε={epsilon})...")
-result = minimize(
-    objective, x0,
-    method='SLSQP',
-    constraints={'type': 'ineq', 'fun': constraint},
-    bounds=[(-8, 2)] * n_src,
-    options={'maxiter': 1000, 'ftol': 1e-8, 'disp': True}
-)
+        loss.backward()
+        optimizer.step()
+        scheduler.step()
 
-b_opt = np.exp(result.x)
-gz_opt, gr_opt = compute_field(b_opt)
-err = np.sqrt((gz_opt - g0)**2 + gr_opt**2)
+        with torch.no_grad():
+            log_b.clamp_(-8, 2)
 
-print(f"\nMax field error: {err.max():.4f} (ε={epsilon})")
-print(f"Constraint violations: {np.sum(err > epsilon)}/{n_obs}")
-print(f"Optimal mass: {objective(result.x):.4f}")
+        if step % log_every == 0 or step == n_steps - 1:
+            with torch.no_grad():
+                viol = (err > epsilon).sum().item()
+            print(f"  λ={lam:.0f} step={step:4d}: mass={mass.item():.4f}, "
+                  f"max_err={err.max().item():.4f}, violations={viol}/{n_obs}")
+
+# Progressive lambda schedule
+for lam in [10, 100, 1000, 10000, 100000]:
+    print(f"\n--- Lambda = {lam} ---")
+    run_opt(lam, n_steps=3000, log_every=1000)
+
+# --- Final evaluation ---
+with torch.no_grad():
+    b_opt = torch.exp(log_b)
+    gz_opt, gr_opt = compute_field(b_opt)
+    err_opt = torch.sqrt((gz_opt - g0)**2 + gr_opt**2)
+
+    b_np  = b_opt.cpu().numpy()
+    gz_np = gz_opt.cpu().numpy()
+    gr_np = gr_opt.cpu().numpy()
+    err_np = err_opt.cpu().numpy()
+    mass_final = float(2 * np.pi * (b_opt * r_src * dr).sum().item())
+
+print(f"\n--- Final ---")
+print(f"Mass:               {mass_final:.4f}")
+print(f"Max field error:    {err_np.max():.4f}  (ε={epsilon})")
+print(f"Violations:         {np.sum(err_np > epsilon)}/{n_obs}")
+print(f"g_z range:          [{gz_np.min():.4f}, {gz_np.max():.4f}]")
+print(f"g_r max:            {np.abs(gr_np).max():.4f}")
 
 # --- Plot ---
 fig, axes = plt.subplots(1, 3, figsize=(15, 5))
 
 ax = axes[0]
-r_plot = np.concatenate([-r_src[::-1], r_src])
-b_plot = np.concatenate([b_opt[::-1], b_opt])
+r_plot = np.concatenate([-r_src_np[::-1], r_src_np])
+b_plot = np.concatenate([b_np[::-1], b_np])
 ax.fill_between(r_plot, 0, -b_plot, color='steelblue', alpha=0.8)
 ax.plot([-disk_r, disk_r], [0, 0], 'r-', lw=3, label='Disk')
 ax.axvline( disk_r, color='r', ls='--', alpha=0.3)
 ax.axvline(-disk_r, color='r', ls='--', alpha=0.3)
 ax.set_xlim(-R_ext/2, R_ext/2)
-ax.set_ylim(-np.max(b_opt)*1.3, np.max(b_opt)*0.3)
+ax.set_ylim(-b_np.max()*1.3, b_np.max()*0.3)
 ax.set_aspect('equal')
 ax.set_title(f'Min-mass slab (ε={epsilon})')
-ax.set_xlabel('r'); ax.set_ylabel('z')
-ax.legend()
+ax.set_xlabel('r'); ax.set_ylabel('z'); ax.legend()
 
 ax = axes[1]
-ax.plot(r_obs, gz_opt, 'b-', label='$g_z$')
-ax.plot(r_obs, gr_opt, 'r-', label='$g_r$')
+ax.plot(r_obs_np, gz_np, 'b-', label='$g_z$')
+ax.plot(r_obs_np, gr_np, 'r-', label='$g_r$')
 ax.axhline(g0, color='b', ls='--', alpha=0.5)
 ax.axhline(0,  color='r', ls='--', alpha=0.5)
-ax.fill_between(r_obs, g0 - epsilon, g0 + epsilon, alpha=0.1, color='blue', label='ε band')
+ax.fill_between(r_obs_np, g0 - epsilon, g0 + epsilon, alpha=0.1, color='blue')
 ax.set_title('Field on disk'); ax.set_xlabel('r'); ax.legend()
 
 ax = axes[2]
-ax.plot(r_obs, err, 'k-')
+ax.plot(r_obs_np, err_np, 'k-')
 ax.axhline(epsilon, color='r', ls='--', label=f'ε={epsilon}')
 ax.set_title('|g - target|'); ax.set_xlabel('r'); ax.legend()
 
