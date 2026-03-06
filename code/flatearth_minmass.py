@@ -17,18 +17,18 @@ import matplotlib.pyplot as plt
 import matplotlib; matplotlib.use('Agg')
 from scipy.special import ellipk, ellipe
 
-d = {'device': 'cpu', 'dtype': torch.float32}
+d = {'device': 'cuda', 'dtype': torch.float32}
 print(d)
 
 # --- Parameters ---
 disk_r = 0.5
 g0     = 1.0     # target field magnitude (kernel convention: positive downward)
-epsilon = 0.050   # field vector tolerance
+epsilon = 0.025   # field vector tolerance
 
-n_src = 500
-n_obs = 500
-n_z   = 600       # z quadrature points
-R_ext = disk_r * 5.0
+n_src = 3500
+n_obs = 1500
+n_z   = 30        # Gauss-Legendre quadrature points (exponential convergence)
+R_ext = disk_r * 7.0
 
 # --- Precompute elliptic integral lookup tables ---
 N_table = 100_000
@@ -62,11 +62,15 @@ r_src_np = 0.5 * (r_src_np[:-1] + r_src_np[1:])
 dr = float(R_ext / n_src)
 
 r_obs_np = np.linspace(disk_r / n_obs, disk_r * 0.99, n_obs)
-z_frac   = ((np.arange(n_z) + 0.5) / n_z).astype(np.float32)
+# Gauss-Legendre nodes/weights on [0, 1] (mapped from [-1, 1])
+_gl_nodes, _gl_weights = np.polynomial.legendre.leggauss(n_z)
+z_frac   = ((_gl_nodes + 1) / 2).astype(np.float32)   # nodes on [0, 1]
+z_weights = (_gl_weights / 2).astype(np.float32)       # weights (sum to 1)
 
 r_src  = torch.tensor(r_src_np, **d)
 r_obs  = torch.tensor(r_obs_np, **d)
-z_frac = torch.tensor(z_frac,   **d)
+z_frac    = torch.tensor(z_frac,    **d)
+z_weights = torch.tensor(z_weights, **d)
 
 
 def compute_field(b_vals):
@@ -82,8 +86,9 @@ def compute_field(b_vals):
     rs = r_src[None, :, None]          # (1, n_src, 1)
     zf = z_frac[None, None, :]         # (1, 1, n_z)
 
+    zw  = z_weights[None, None, :]     # (1, 1, n_z) GL weights (sum to 1)
     z_  = b_vals[None, :, None] * zf  # (n_obs, n_src, n_z)  — actual depths
-    dz_ = b_vals[None, :, None] / n_z
+    dz_ = b_vals[None, :, None] * zw  # GL-weighted dz (replaces b/n_z * uniform)
 
     beta2  = (ro + rs)**2 + z_**2
     alpha2 = (ro - rs)**2 + z_**2
@@ -113,6 +118,7 @@ with torch.no_grad():
     b_test = torch.full((n_src,), 0.1, **d)
     gz_t, gr_t = compute_field(b_test)
     print(f"Validation — uniform slab b=0.1:")
+    print(f"  ε = {epsilon:.4f}")
     print(f"  g_z = {gz_t.mean().item():.4f} (infinite-slab limit: {2*np.pi*0.1:.4f})")
     print(f"  g_r max = {gr_t.abs().max().item():.4f}")
 
@@ -154,7 +160,7 @@ def run_opt(lam, n_steps=2000, log_every=500):
                   f"max_err={err.max().item():.4f}, violations={viol}/{n_obs}")
 
 # Progressive lambda schedule
-for lam in [1000, 10000, 100000]:
+for lam in [100000]:
     print(f"\n--- Lambda = {lam} ---")
     run_opt(lam, n_steps=3000, log_every=1000)
 
@@ -185,6 +191,7 @@ ax = axes[0]
 r_plot = np.concatenate([-r_src_np[::-1], r_src_np])
 b_plot = np.concatenate([b_np[::-1], b_np])
 ax.fill_between(r_plot, 0, -b_plot, color='steelblue', alpha=0.8)
+ax.plot(r_plot, -b_plot, color='black', linewidth=0.1)
 ax.plot([-disk_r, disk_r], [0, 0], 'r-', lw=3, label='Disk')
 ax.axvline( disk_r, color='r', ls='--', alpha=0.3)
 ax.axvline(-disk_r, color='r', ls='--', alpha=0.3)
@@ -203,7 +210,7 @@ ax.fill_between(r_obs_np, g0 - epsilon, g0 + epsilon, alpha=0.1, color='blue')
 ax.set_title('Field on disk'); ax.set_xlabel('r'); ax.legend()
 
 ax = axes[2]
-ax.plot(r_obs_np, err_np, 'ko')
+ax.plot(r_obs_np, err_np, 'k-')
 ax.axhline(epsilon, color='r', ls='--', label=f'ε={epsilon}')
 ax.set_title('|g - target|'); ax.set_xlabel('r'); ax.legend()
 
