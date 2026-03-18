@@ -27,7 +27,7 @@ epsilon   = 0.005
 n_src     = 5000
 n_obs     = 500
 n_z       = 50
-smoothing = 1e-3
+smoothing = 5e-3
 R_ext     = 2 * 4.0
 
 # --- Elliptic integral lookup tables ---
@@ -166,7 +166,7 @@ print(f"Max field error:    {err_np.max():.4f}  (ε={epsilon})")
 # --- Plot ---
 # %% plot
 
-fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+fig, axes = plt.subplots(1, 2, figsize=(15, 5))
 
 ax = axes[0]
 r_plot = np.concatenate([-r_src_np[::-1], r_src_np])
@@ -182,15 +182,15 @@ ax.set_aspect(0.25 * R_ext / (b_np.max()))
 ax.set_title(f'(mass={mass_final:.4f}, ε={epsilon}, actual ε_max={err_np.max():.3f})')
 ax.set_xlabel('r'); ax.set_ylabel('z'); ax.legend()
 
-ax = axes[1]
-ax.plot(r_obs_np, gz_np, 'b-', label='$g_z$')
-ax.plot(r_obs_np, gr_np, 'r-', label='$g_r$')
-ax.axhline(g0, color='b', ls='--', alpha=0.5)
-ax.axhline(0,  color='r', ls='--', alpha=0.5)
-ax.fill_between(r_obs_np, g0 - epsilon, g0 + epsilon, alpha=0.1, color='blue')
-ax.set_title('Field on disk'); ax.set_xlabel('r'); ax.legend()
+# ax = axes[1]
+# ax.plot(r_obs_np, gz_np, 'b-', label='$g_z$')
+# ax.plot(r_obs_np, gr_np, 'r-', label='$g_r$')
+# ax.axhline(g0, color='b', ls='--', alpha=0.5)
+# ax.axhline(0,  color='r', ls='--', alpha=0.5)
+# ax.fill_between(r_obs_np, g0 - epsilon, g0 + epsilon, alpha=0.1, color='blue')
+# ax.set_title('Field on disk'); ax.set_xlabel('r'); ax.legend()
 
-ax = axes[2]
+ax = axes[1]
 ax.plot(r_obs_np, err_np, 'k-')
 ax.axhline(epsilon, color='r', ls='--', label=f'ε={epsilon}')
 ax.set_title('|g - target|'); ax.set_xlabel('r'); ax.legend()
@@ -199,9 +199,19 @@ plt.tight_layout()
 fig.text(0.01, 0.01, text:=f'n_src={n_src}  n_obs={n_obs}  n_z={n_z} smooth={smoothing:2e}',
          fontsize=8, color='gray', va='bottom', ha='left')
 print(text)
-plt.savefig('/www/flatearth/minmass.png', dpi=150)
+plt.savefig('/www/flatearth/minmass.png', dpi=75)
 plt.savefig(f'/www/flatearth/archive/minmass_{datetime.now(UTC).isoformat()}.png', dpi=150)
 print("Saved to /www/flatearth/minmass.png")
+
+# save settings and error for later reference
+with open('/www/flatearth/minmass.tsv', 'a') as f:
+    variables = [
+        mass_final, epsilon, err_np.max(),
+        disk_r, g0, epsilon, n_src, n_obs,
+        n_z, smoothing, R_ext,
+    ]
+    f.write('\t'.join(map(str, variables)) + '\n')
+
 
 for f in ['/www/flatearth_results.npz', f'/www/flatearth/archive_vars/{datetime.now(UTC).isoformat()}.npz']:
     np.savez(
