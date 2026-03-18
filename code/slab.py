@@ -9,7 +9,7 @@ Loss function is arbitrary PyTorch; optimizer is standard Adam.
 """
 
 import numpy as np
-from datetime import datetime
+from datetime import datetime, UTC
 import torch
 import matplotlib; matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -24,11 +24,11 @@ print(d)
 disk_r    = 0.5
 g0        = 1.0
 epsilon   = 0.005
-n_src     = 15000
+n_src     = 5000
 n_obs     = 500
-n_z       = 8
-smoothing = 0e-3
-R_ext     = 2 * 16.0
+n_z       = 50
+smoothing = 1e-3
+R_ext     = 2 * 4.0
 
 # --- Elliptic integral lookup tables ---
 N_table = 100_000
@@ -126,7 +126,7 @@ def run_opt(lam, n_steps=2000, log_every=500):
         mass    = 2 * np.pi * (b * r_src * dr).sum()
         err     = torch.sqrt((gz - g0)**2 + gr**2)
         # penalty = torch.relu(err - epsilon).sum().pow(4)
-        penalty = torch.relu(err - epsilon).pow(4).mean()
+        penalty = torch.relu(err - epsilon).pow(2).mean()
         # smooth  = smoothing * log_b.diff().pow(2).mean()
         smooth  = smoothing * (log_b.diff() / dr).pow(2).mean() * R_ext
         loss    = mass + lam * penalty + smooth
@@ -147,6 +147,7 @@ for lam in [1e4, 1e5, 1e6, 1e7, 1e8]:
     run_opt(lam, n_steps=3000, log_every=1000)
 
 # --- Final evaluation ---
+# %% final
 with torch.no_grad():
     b_opt = torch.exp(log_b)
     gz_opt, gr_opt = SlabField.apply(b_opt)
@@ -178,7 +179,7 @@ ax.axvline(-disk_r, color='r', ls='--', alpha=0.3)
 ax.set_xlim(-R_ext/2, R_ext/2)
 ax.set_ylim(-b_np.max()*1.3, b_np.max()*0.3)
 ax.set_aspect(0.25 * R_ext / (b_np.max()))
-ax.set_title(f'Min-mass slab (ε={epsilon}, actual ε_max={err_np.max():.3f})')
+ax.set_title(f'(mass={mass_final:.4f}, ε={epsilon}, actual ε_max={err_np.max():.3f})')
 ax.set_xlabel('r'); ax.set_ylabel('z'); ax.legend()
 
 ax = axes[1]
@@ -195,15 +196,18 @@ ax.axhline(epsilon, color='r', ls='--', label=f'ε={epsilon}')
 ax.set_title('|g - target|'); ax.set_xlabel('r'); ax.legend()
 
 plt.tight_layout()
-fig.text(0.01, 0.01, text:=f'n_src={n_src}  n_obs={n_obs}  n_z={n_z} smooth={smoothing}',
+fig.text(0.01, 0.01, text:=f'n_src={n_src}  n_obs={n_obs}  n_z={n_z} smooth={smoothing:2e}',
          fontsize=8, color='gray', va='bottom', ha='left')
 print(text)
 plt.savefig('/www/flatearth/minmass.png', dpi=150)
-plt.savefig(f'/www/flatearth/archive/minmass_{datetime.utcnow().isoformat()}.png', dpi=150)
+plt.savefig(f'/www/flatearth/archive/minmass_{datetime.now(UTC).isoformat()}.png', dpi=150)
 print("Saved to /www/flatearth/minmass.png")
 
-np.savez('/www/flatearth_result.npz',
-         b_opt=b_np, r_src=r_src_np,
-         gz=gz_np, gr=gr_np, err=err_np, r_obs=r_obs_np,
-         meta=np.array([epsilon, g0, disk_r, float(n_src), float(n_obs)]))
+for f in ['/www/flatearth_results.npz', f'/www/flatearth/archive_vars/{datetime.now(UTC).isoformat()}.npz']:
+    np.savez(
+        f,
+        b_opt=b_np, r_src=r_src_np,
+        gz=gz_np, gr=gr_np, err=err_np, r_obs=r_obs_np,
+        meta=np.array([epsilon, g0, disk_r, float(n_src), float(n_obs)])
+    )
 print(f"Saved results to /www/flatearth_result.npz")
