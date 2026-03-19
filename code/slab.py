@@ -23,9 +23,9 @@ print(d)
 # --- Parameters ---
 disk_r    = 0.5
 g0        = 1.0
-epsilon   = 0.005
-n_src     = 2000
-n_obs     = 200
+epsilon   = 0.0025
+n_src     = 4000
+n_obs     = 400
 n_z       = 25
 smoothing = 5e-3
 R_ext     = 2 * 4.0
@@ -113,7 +113,7 @@ with torch.no_grad():
 # --- Optimization ---
 log_b = torch.full((n_src,), np.log(b0_val), **d, requires_grad=True)
 
-n_steps = 4000
+n_steps = 6000
 
 optimizer = torch.optim.Adam([log_b], lr=1e-2)
 scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=n_steps, eta_min=1e-4)
@@ -122,8 +122,8 @@ for step in range(n_steps):
     optimizer.zero_grad()
     b = torch.exp(log_b)
 
-    # geometric lambda ramp: 1e4 → 1e9 over training
-    lam = 10 ** (4 + 5 * step / (n_steps - 1))
+    # geometric lambda ramp: 1e4 → 1e11 over training
+    lam = 10 ** (4 + 7 * step / (n_steps - 1))
 
     gz, gr = SlabField.apply(b)
 
