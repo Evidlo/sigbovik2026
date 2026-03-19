@@ -23,11 +23,11 @@ print(d)
 # --- Parameters ---
 disk_r    = 0.5
 g0        = 1.0
-epsilon   = 0.0005
-n_src     = 3000
-n_obs     = 300
-n_z       = 100
-smoothing = 5e-4
+epsilon   = 0.005
+n_src     = 2000
+n_obs     = 200
+n_z       = 25
+smoothing = 5e-3
 R_ext     = 2 * 4.0
 
 # --- Elliptic integral lookup tables ---
@@ -168,9 +168,10 @@ rho_2d = (z_grid[None, :] <= b_np[:, None]).astype(float)
 leak = check_boundary_leakage(rho_2d, r_src_np, z_grid)
 print(f"Boundary fractions: { {k: f'{v:.4f}' for k, v in leak['boundary_fractions'].items()} }")
 if leak['leaking']:
-    print("WARNING: mass leaking at boundary!")
-else:
-    print("Leakage check: OK")
+    raise RuntimeError(
+        f"Mass leaking at boundary! fractions={leak['boundary_fractions']}"
+    )
+print("Leakage check: OK")
 
 # --- Plot ---
 # %% plot
@@ -203,9 +204,10 @@ ax = axes[1]
 ax.plot(r_obs_np, err_np, 'k-')
 ax.axhline(epsilon, color='r', ls='--', label=f'ε={epsilon}')
 ax.set_title('|g - target|'); ax.set_xlabel('r'); ax.legend()
+ax.set_ylim([0, 1.1 * epsilon])
 
 plt.tight_layout()
-fig.text(0.01, 0.01, text:=f'n_src={n_src}  n_obs={n_obs}  n_z={n_z} smooth={smoothing:2e}',
+fig.text(0.01, 0.01, text:=f'n_src={n_src}  n_obs={n_obs}  n_z={n_z} smooth={smoothing:.2e}',
          fontsize=8, color='gray', va='bottom', ha='left')
 print(text)
 plt.savefig('/www/flatearth/minmass.png', dpi=75)
