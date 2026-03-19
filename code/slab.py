@@ -23,11 +23,11 @@ print(d)
 # --- Parameters ---
 disk_r    = 0.5
 g0        = 1.0
-epsilon   = 0.005
-n_src     = 2000
-n_obs     = 200
-n_z       = 25
-smoothing = 5e-3
+epsilon   = 0.0005
+n_src     = 3000
+n_obs     = 300
+n_z       = 100
+smoothing = 5e-4
 R_ext     = 2 * 4.0
 
 # --- Elliptic integral lookup tables ---
@@ -160,6 +160,17 @@ with torch.no_grad():
 print(f"\n--- Final ---")
 print(f"Mass:               {mass_final:.4f}")
 print(f"Max field error:    {err_np.max():.4f}  (ε={epsilon})")
+
+# --- Leakage check ---
+from solution_check import check_boundary_leakage
+z_grid = np.linspace(0, b_np.max(), 200)
+rho_2d = (z_grid[None, :] <= b_np[:, None]).astype(float)
+leak = check_boundary_leakage(rho_2d, r_src_np, z_grid)
+print(f"Boundary fractions: { {k: f'{v:.4f}' for k, v in leak['boundary_fractions'].items()} }")
+if leak['leaking']:
+    print("WARNING: mass leaking at boundary!")
+else:
+    print("Leakage check: OK")
 
 # --- Plot ---
 # %% plot
