@@ -184,7 +184,7 @@ We thank Chester "Chet" Geebeedee for his assistance in validating the derivatio
 - $x' ∈ ℝ^3$ - source point below surface of disk
 - $g(x) ∈ ℝ^3$ - gravity vector field at a point $x$ on surface of disk
 
-== ASS Gravity Field <derivation>
+== Axially-Symmetric Gravity Field <derivation>
 
 First write the gravity field at an observation point $x$ on the disk surface due to a point source of mass $x'$ beneath the disk.
 
@@ -252,7 +252,44 @@ $
     dif z' r' dif r' dif theta' \
 $
 
-Substituting the ASS parameterization for $ρ$
+Performing the $theta'$ integral using the half-angle substitution $phi = theta' slash 2$ and writing the denominator as $Delta = M^2(1 - k^2 cos^2 phi)$ where
+
+$
+    k = (2 sqrt(r r')) / M, quad
+    m^2 = (r - r')^2 + z'^2, quad
+    M = sqrt((r + r')^2 + z'^2)
+$
+
+yields
+
+$
+    integral_0^(2 pi) (d theta') / Delta^(3/2)
+    &= (4 E(k)) / (m^2 M) \
+
+    integral_0^(2 pi) (r - r' cos theta') / Delta^(3/2) d theta'
+    &= 2 / (r M) lr([K(k) - (r'^2 - r^2 + z'^2) / m^2 E(k)])
+$
+
+where $K(k)$ and $E(k)$ are the complete elliptic integrals of the first and second kind. Substituting:
+
+$
+    g_(r)(r) &=
+    2 / r
+    integral_0^infinity integral_(-infinity)^0
+    rho(r', z') r' / M
+    lr([K(k) - (r'^2 - r^2 + z'^2) / m^2 E(k)])
+    dif z' dif r' \
+
+    g_(z)(r) &=
+    -4
+    integral_0^infinity integral_(-infinity)^0
+    rho(r', z') (r' z' E(k)) / (m^2 M)
+    dif z' dif r'
+$
+
+== ASS Gravity Field
+
+Substituting the ASS parameterization for $ρ$ into $g_r$ and $g_z$ from the previous section
 
 $
     g_(r)(r) &=
