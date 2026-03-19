@@ -24,8 +24,8 @@ print(d)
 disk_r    = 0.5
 g0        = 1.0
 epsilon   = 0.00125
-n_src     = 4000
-n_obs     = 400
+n_src     = 8000
+n_obs     = 800
 n_z       = 25
 smoothing = 5e-3
 R_ext     = 2 * 4.0
@@ -113,7 +113,7 @@ with torch.no_grad():
 # --- Optimization ---
 log_b = torch.full((n_src,), np.log(b0_val), **d, requires_grad=True)
 
-n_steps = 15000
+n_steps = 12000
 
 optimizer = torch.optim.Adam([log_b], lr=1e-2)
 scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=n_steps, eta_min=1e-4)

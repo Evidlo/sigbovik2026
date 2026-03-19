@@ -1,21 +1,48 @@
 #import "functions.typ": *
+#import "template2.typ": *
 
-#set heading(numbering: "1.")
+#show: setup
 
-= Notes
+#title-block(
+    title: "FLEARTH",
+    abstract: [],
+    authors: (
+        (
+            name: "Evan Widloski",
+            email: "evan_bovik@widloski.com"
+        ),
+    ),
+    index-terms: ("raytracer", "projector", "spherical coordinates", "remote sensing", "tomography", "PyTorch", "GPU"),
+)
 
-- facebook comments
-  - https://www.facebook.com/groups/1295673443855365/posts/8282756768480296/
+// = Notes
 
+// - facebook comments
+//   - https://www.facebook.com/groups/1295673443855365/posts/8282756768480296/
+
+#columns(2, gutter: 12pt)[
 
 = Abstract
+
+The flat Earth model, in which the Earth is a disk or cylindrical slab of uniform density, predicts a gravitational field that varies significantly with distance from the center — inconsistent with ground-based gravimetry measurements showing deviations of less than 0.07% from standard 1g acceleration. In this work, we investigate whether relaxing the uniform-density assumption of the cylindrical slab model can reconcile the flat Earth hypothesis with observed gravimetric data. We introduce the Axially-Symmetric Slab (ASS) parameterization, which allows the slab thickness to vary as a function of radius, and pose the problem of finding a density profile that minimizes gravity field non-uniformity over the disk surface. Using a differentiable forward model and numerical optimization, we identify slab profiles that produce gravity field deviations within gravimetric survey limits. Our results demonstrate that a non-uniform flat Earth mass distribution can, in principle, produce a gravitational field indistinguishable from measurements, offering a quantitative response to one of the primary physical objections to the flat Earth model.
+
 = Introduction
 
 For nearly 200 years a fierce debate over the true nature of our world has been ongoing between those who believe the Earth is shaped like a sphere/geoid (known as "sphericists"/"globe-heads") and those who think the earth is a flat disk or slab ("flat-earthers"/"flerfs").
 
-One such point of contention between these two groups is the issue of the uniformity of gravity.  While a sphere of constant density naturally has consistent, nadir-pointing gravitational acceleration over its surface, on a disk a person walking from the center towards the edge will experience increasing gravitational resistance as if they are walking uphill, shown in (FIXME: figure).  Extensive gravimetric surveys that show local deviations from standard 1 g acceleration of no more than 0.5% (ε=0.005)(FIXME: cite, FIXME: figure of geoid).
+One such point of contention between these two groups is the issue of the uniformity of gravity.  While a sphere of constant density naturally has consistent, nadir-pointing gravitational acceleration over its surface, on a disk a person walking from the center towards the edge will experience increasing gravitational resistance as if they are walking uphill, shown in @intro1.  Extensive gravimetric surveys that show local deviations from standard 1 g acceleration of no more than 0.5% (ε=0.005)(FIXME: this number is wrong!, FIXME: cite, FIXME: figure of geoid).
+
+
+#figure(
+    image("figures/intro1.png", width: 25em),
+    caption: [Gravity field of a cylindrical flat Earth and a spherical Earth]
+) <intro1>
 
 // FIXME - figure gravity anomaly
+#figure(
+    image("figures/anomaly.jpg", width: 25em),
+    caption: [Gravity anomaly map from GOCE spacecraft]
+)
 
 While not all flat-earthers believe in a gravitational force (e.g. preferring the view that the Earth is accelerating upwards at 1 g), for the sake of argument we assume that the classical model of gravity holds.  We also do not address theories adjacent theories, such as hollow Earth (concave or convex), infinite-plane Earth, cosmic turtles,  or Klein-bottle Earth.
 
@@ -24,16 +51,18 @@ We hope that by constructing these examples of mass distributions,  we can put t
 
 In the following sections, we define the physics that relate mass distribution to gravity vector field at the Earth's surface, propose two extensions to the simple cylindrical slab model of Earth and approaches to numerically evaluate them, and finally show a numerical analysis of these models.
 
-= Problem Formulation
+// = Problem Formulation
 
-In this section, we
+// In this section, we
 
-In @physics, we derive the physical model that relates a mass distribution below a disk to the gravitational acceleration on the disk's surface, then simplify this relationship for axially-symmetric mass distributions in @physicsaxial.
+// In @physics, we derive the physical model that relates a mass distribution below a disk to the gravitational acceleration on the disk's surface, then simplify this relationship for axially-symmetric mass distributions in @physicsaxial.
 
-// FIXME - cylinder not analytic
-In section @cylinder we show an analytic cylindrical solution that meets requirements,
+// // FIXME - cylinder not analytic
+// In section @cylinder we show an analytic cylindrical solution that meets requirements,
 
-== Physics Forward Model and Problem Statement <physics>
+= Physics Forward Model and Problem Statement <physics>
+
+== Arbitrary Mass Distribution
 
 Let $D$ be an origin-centered disk with diameter 1 in the $z=0$ plane and $ρ:ℝ^3→ℝ$ be a non-negative scalar field representing mass density that is 0 for $z>0$.
 
@@ -58,22 +87,24 @@ Then the problem of finding a mass distribution which produces a uniform downwar
 // FIXME - box outline statement?
 
 $
-    "Find a density distribution" ρ(x') "which satisfies" g(x) = g_0 "for all" x ∈ D
+    "Find a density distribution" ρ(x') \
+    "which satisfies" g(x) = g_0 "for all" x ∈ D
 $
 
-While producing a perfectly uniform downward acceleration would require infinite mass (see @perfect), relaxing the problem to allow deviations in an ε-ball around $g_0$ permits solutions with finite mass.  Indeed, gravimetry measurements show variations in local gravity field on the surface of the Earth up to ~5% (ε=0.005) (FIXME: cite).
+While producing a perfectly uniform downward acceleration would require infinite mass (see @perfect), relaxing the problem to allow deviations in an ε-ball around $g_0$ permits solutions with finite mass.  Indeed, gravimetry measurements show variations in local gravity field on the surface of the Earth up to ~5% (ε=0.005) (FIXME: this number is wrong!, FIXME: cite).
 
 // FIXME - epsilon ball
 
 The problem, restated, is
 
 $
-    "Find a density distribution" ρ(x') "which satisfies" |g(x) - g_0| ≤ ε|g_0| "for all" x ∈ D
+    "Find a density distribution" ρ(x') \
+    "which satisfies" |g(x) - g_0| ≤ ε|g_0| "for all" x ∈ D
 $
 
 // FIXME - cartesian figure here
 
-== Axial Symmetry <physicsaxial>
+== Axially-Symmetric Mass Distribution <physicsaxial>
 
 Assuming that $ρ$ is axially-symmetric around the z-axis, we can write $x$ and $x'$ in cylindrical coordinates without loss of generality as
 
@@ -88,21 +119,24 @@ and reparameterize the density $ρ(x') → ρ(r', z')$
 Then the gravity field in cylindrical coordinates is
 $
     g_(r)(r) &=
-    integral_0^(2 pi) integral_0^infinity integral_(-b(r'))^0
-    1 dot.op (r - r' cos theta')
+    integral_0^(2 pi) integral_0^infinity integral_(-infinity)^0
+    (ρ(r', z') dot.op (r - r' cos theta'))
     / (r^2 + r'^2 - 2 r r' cos theta' + z'^2)^(3/2)
     dif z' r' dif r' dif theta' \
 
     g_(theta)(r) &= 0 \
 
     g_(z)(r) &=
-    integral_0^(2 pi) integral_0^infinity integral_(-b(r'))^0
-    1 dot.op (-z')
+    integral_0^(2 pi) integral_0^infinity integral_(-infinity)^0
+    (ρ(r', z') dot.op -z')
     / (r^2 + r'^2 - 2 r r' cos theta' + z'^2)^(3/2)
     dif z' r' dif r' dif theta' \
 $
 
-and the angular component $g_θ$ is 0 due to symmetry.
+and the angular component $g_θ$ is 0 due to symmetry (see @derivation).
+
+= Mass Distribution Models
+
 
 == Overhang Cylinder Parameterization <cylinder>
 
@@ -132,6 +166,7 @@ This work was supported in part by the National Sci-Ants Foundation Grant 133769
 
 We thank Chester "Chet" Geebeedee for his assistance in validating the derivation of the gravity field equations and Claudia Kody for reducing memory requirements in the PyTorch minimization.
 
+] // end two-column
 
 = Appendix
 
@@ -139,9 +174,9 @@ We thank Chester "Chet" Geebeedee for his assistance in validating the derivatio
 
 - $x ∈ ℝ^3$ - observation point on surface of disk
 - $x' ∈ ℝ^3$ - source point below surface of disk
-- $g ∈ ℝ^3$ - gravity vector field on surface of disk
+- $g(x) ∈ ℝ^3$ - gravity vector field at a point $x$ on surface of disk
 
-== ASS Gravity Field
+== ASS Gravity Field <derivation>
 
 First write the gravity field at an observation point $x$ on the disk surface due to a point source of mass $x'$ beneath the disk.
 
