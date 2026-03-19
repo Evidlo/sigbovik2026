@@ -159,7 +159,7 @@ with torch.no_grad():
 
 print(f"\n--- Final ---")
 print(f"Mass:               {mass_final:.4f}")
-print(f"Max field error:    {err_np.max():.4f}  (ε={epsilon})")
+print(f"Max field error:    {err_np.max():.5f}  (ε={epsilon})")
 
 # --- Leakage check ---
 from solution_check import check_boundary_leakage
@@ -189,7 +189,7 @@ ax.axvline(-disk_r, color='r', ls='--', alpha=0.3)
 ax.set_xlim(-R_ext/2, R_ext/2)
 ax.set_ylim(-b_np.max()*1.3, b_np.max()*0.3)
 ax.set_aspect(0.25 * R_ext / (b_np.max()))
-ax.set_title(f'(mass={mass_final:.4f}, ε={epsilon}, actual ε_max={err_np.max():.3f})')
+ax.set_title(f'(mass={mass_final:.4f}, ε={epsilon}, actual ε_max={err_np.max():.5f})')
 ax.set_xlabel('r'); ax.set_ylabel('z'); ax.legend()
 
 # ax = axes[1]
@@ -229,6 +229,13 @@ for f in ['/www/flatearth_results.npz', f'/www/flatearth/archive_vars/{datetime.
         f,
         b_opt=b_np, r_src=r_src_np,
         gz=gz_np, gr=gr_np, err=err_np, r_obs=r_obs_np,
-        meta=np.array([epsilon, g0, disk_r, float(n_src), float(n_obs)])
+        epsilon=np.float64(epsilon),
+        g0=np.float64(g0),
+        disk_r=np.float64(disk_r),
+        n_src=np.int32(n_src),
+        n_obs=np.int32(n_obs),
+        n_z=np.int32(n_z),
+        smoothing=np.float64(smoothing),
+        R_ext=np.float64(R_ext),
     )
 print(f"Saved results to /www/flatearth_result.npz")
