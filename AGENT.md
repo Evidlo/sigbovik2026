@@ -95,7 +95,7 @@ $\exp(\ell(r'))$ to enforce positivity. See `code/flatearth_minmass.py`.
 Latest plot is saved to `/www/flatearth/minimass.png`
 
 Results saved to `/www/flatearth_result.npz` (keys: `b_opt`, `r_src`, `gz`,
-`gr`, `err`, `r_obs`, `meta=[epsilon, g0, disk_r, n_src, n_obs]`).
+`gr`, `err`, `r_obs`, `epsilon`, `g0`, `disk_r`, `n_src`, `n_obs`).
 
 ## Next Steps
 
