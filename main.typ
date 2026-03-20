@@ -34,12 +34,12 @@ One such point of contention between these two groups is the issue of the unifor
 
 
 #figure(
-    image("figures/intro1.png", width: 25em),
+    image("figures/intro1.svg", width: 25em),
     caption: [Gravity field of a cylindrical flat Earth and a spherical Earth]
 ) <intro1>
 
 #figure(
-    image("figures/anomaly.jpg", width: 25em),
+    image("figures/anomaly_scratch.jpg", width: 25em),
     caption: [Gravity anomaly map from GOCE spacecraft]
 ) <anomalymap>
 
@@ -68,7 +68,7 @@ In this section we establish the physics of the flat Earth mass distribution pro
 Let $D$ be an origin-centered disk with diameter 1 in the $z=0$ plane and $ρ:ℝ^3→ℝ$ be a non-negative scalar field representing mass density that is 0 for $z>0$.
 
 #figure(
-    image("figures/physics1.png", width: 25em),
+    image("figures/physics1.svg", width: 25em),
     caption: [Surface of Earth disk D (in red) in $z=0$ plane with mass distribution $ρ$ below.  $x$ is an observation point on the disk and $x'$ is an arbitrary source point that contributes to the gravity field at $x$]
 )
 
