@@ -68,11 +68,11 @@ for ts in TIMESTAMPS:
     ax.set_xlabel(r'$r$')
     ax.legend()
 
-    label = f'n_src={n_src}  n_obs={n_obs}  n_z={n_z}  smooth={smoothing:.2e}  mass={mass:.4f}'
+    label = f'nsrc={n_src}  nobs={n_obs}  nz={n_z}  smooth={smoothing:.2e}  mass={mass:.4f}'
     fig.text(0.01, 0.01, label, fontsize=8, color='gray', va='bottom', ha='left')
     plt.tight_layout()
 
-    outpath = f'/www/flatearth/figure_{display_epsilon}.png'
-    plt.savefig(outpath, dpi=150, bbox_inches='tight')
+    outpath = f'/www/flatearth/figure_{display_epsilon}.svg'
+    plt.savefig(outpath, dpi=250, bbox_inches='tight')
     print(f"Saved {outpath}")
     plt.close(fig)

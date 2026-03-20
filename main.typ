@@ -163,13 +163,13 @@ In this section we define the Axially-Symmetric Slab (ASS) model for $ρ$, in wh
     )
 $)
 
-where $-b(r')$ is a 1D profile that lower-bounds the slab when revolved around the $z$ axis.
+where $b(r')$ is a 1D profile that lower-bounds the slab when revolved around the $z$ axis.
 
 // FIXME - illustration of -b(r')
 
 #figure(
     image("figures/ass1.svg"),
-    caption: "Example ASS models and associated b(r') profiles"
+    caption: [Example ASS models and associated $b(r')$ profiles]
 )
 
 
@@ -202,12 +202,11 @@ The minimum-mass slab cross-section narrows with increasing field-error toleranc
 #figure(
     grid(
         columns: (1fr, 1fr, 1fr),
-        gutter: 12pt,
-        image("figures/figure_0.01.png"),
-        image("figures/figure_0.005.png"),
-        image("figures/figure_0.001.png"),
+        image("figures/figure_0.01.svg"),
+        image("figures/figure_0.005.svg"),
+        image("figures/figure_0.001.svg"),
     ),
-    caption: [],
+    caption: [Minimum-mass slabs satisfy gravity deviation bounds of ε=0.01, 0.005 and 0.001.],
     placement: bottom,
     scope: "parent",
 ) <minmass_results>
