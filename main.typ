@@ -24,7 +24,7 @@
 
 = Abstract
 
-The flat Earth model, in which the Earth is a disk or cylindrical slab of uniform density, predicts under classical Newtonian mechanics a gravitational field that varies significantly over the Earth's surface — inconsistent with global gravimetry measurements showing deviations of less than 0.1% from standard 1g acceleration. In this work, we investigate whether allowing variable thickness of the cylindrical slab can reduce the gravity variations. We introduce the Axially-Symmetric Slab (ASS) model, which allows the slab thickness to vary as a function of radius, and pose the problem of finding a density profile that minimizes total mass while keeping field non-uniformity over the disk surface below a chosen threshold. Using a differentiable forward model and numerical optimization, we identify slab profiles that satisfy these constraints. Our results demonstrate that a non-uniform flat Earth mass distribution can produce a gravitational field consistent with deviation observed in gravimetric surveys, offering a quantitative response to one of the primary physical objections to the flat Earth model.
+The flat Earth model, in which the Earth is a disk or cylindrical slab of uniform density, predicts under classical Newtonian mechanics a gravitational field that varies significantly over the Earth's surface. This is inconsistent with global gravimetry measurements showing deviations of less than 0.1% from standard 1 g acceleration. In this work, we investigate whether allowing variable thickness of the cylindrical slab can reduce the gravity variations. We introduce the Axially-Symmetric Slab (ASS) model, which allows the slab thickness to vary as a function of radius, and pose the problem of finding a density profile that minimizes total mass while keeping field non-uniformity over the disk surface below a chosen threshold. Using a differentiable forward model and numerical optimization, we identify slab profiles that satisfy these constraints. Our results demonstrate that a non-uniform flat Earth mass distribution can produce a gravitational field consistent with deviation observed in gravimetric surveys, offering a quantitative response to one of the primary physical objections to the flat Earth model.
 
 = Introduction
 
@@ -36,7 +36,7 @@ One such point of contention between these two groups is the issue of the unifor
 
 
 #figure(
-    image("figures/intro1.svg", width: 25em),
+    image("figures/intro2.svg", width: 25em),
     caption: [Gravity field of a cylindrical flat Earth and a spherical Earth]
 ) <intro1>
 
@@ -82,6 +82,8 @@ $
     g(x) //= integral_(ℝ^3) g(x, x') dif x'
     = integral_(ℝ^3) G ρ(x') / (||x - x'||^2) dot.op (x' - x) / (||x - x'||) dif x'
 $
+
+Without loss of generality, we assume $G = 1$.
 
 Then the problem of finding a mass distribution which produces a uniform downward acceleration $g_0 = (0, 0, -1)$ may be stated
 
@@ -242,6 +244,9 @@ We thank Chester "Chet" Geebeedee for his assistance in validating the derivatio
 - $x ∈ ℝ^3$ - observation point on surface of disk
 - $x' ∈ ℝ^3$ - source point below surface of disk
 - $g(x) ∈ ℝ^3$ - gravity vector field at a point $x$ on surface of disk
+- $ρ(x')$ - mass density distribution
+- $(r, 0, 0)$ - observation point on surface of disk in cylindrical coordinates (axially symmetric)
+- $(r', θ', z')$ - source point below surface of disk in cylindrical coordinates (axially symmetric)
 
 == Axially-Symmetric Gravity Field <derivation>
 
@@ -258,7 +263,8 @@ $
     = integral_(bb(R)^3) rho(x') dot.op (x' - x) / (||x - x'||^3) dif x'
 $
 
-Due to the assumed axial symmetry of $rho$, without loss of generality we can write in cylindrical coordinates:
+Due to the assumed axial symmetry of $rho$, we can write in cylindrical coordinates:
+
 
 $
     x = vec(r, 0, 0) "and" x' = vec(r' cos theta', r' sin theta', z') \
