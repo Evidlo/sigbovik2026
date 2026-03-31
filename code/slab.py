@@ -13,7 +13,11 @@ from datetime import datetime, UTC
 import torch
 import matplotlib; matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+import scienceplots
+plt.style.use('science')
 from scipy.special import ellipk, ellipe
+
+outdir = '/www/flatearth'
 
 torch.cuda.empty_cache()
 
@@ -176,7 +180,7 @@ print("Leakage check: OK")
 # --- Plot ---
 # %% plot
 
-fig, axes = plt.subplots(1, 2, figsize=(15, 5))
+fig, axes = plt.subplots(2, 1, figsize=(4, 4), gridspec_kw={'height_ratios': [1, 2]})
 
 ax = axes[0]
 r_plot = np.concatenate([-r_src_np[::-1], r_src_np])
@@ -188,22 +192,17 @@ ax.axvline( disk_r, color='r', ls='--', alpha=0.3)
 ax.axvline(-disk_r, color='r', ls='--', alpha=0.3)
 ax.set_xlim(-R_ext/2, R_ext/2)
 ax.set_ylim(-b_np.max()*1.3, b_np.max()*0.3)
-ax.set_aspect(0.25 * R_ext / (b_np.max()))
-ax.set_title(f'(mass={mass_final:.4f}, ε={epsilon}, actual ε_max={err_np.max():.5f})')
-ax.set_xlabel('r'); ax.set_ylabel('z'); ax.legend()
-
-# ax = axes[1]
-# ax.plot(r_obs_np, gz_np, 'b-', label='$g_z$')
-# ax.plot(r_obs_np, gr_np, 'r-', label='$g_r$')
-# ax.axhline(g0, color='b', ls='--', alpha=0.5)
-# ax.axhline(0,  color='r', ls='--', alpha=0.5)
-# ax.fill_between(r_obs_np, g0 - epsilon, g0 + epsilon, alpha=0.1, color='blue')
-# ax.set_title('Field on disk'); ax.set_xlabel('r'); ax.legend()
+ax.set_title(fr'Min-mass slab ($\varepsilon={epsilon}$)')
+ax.set_xlabel(r'$r$')
+ax.set_ylabel(r'$z$')
+ax.legend()
 
 ax = axes[1]
 ax.plot(r_obs_np, err_np, 'k-')
-ax.axhline(epsilon, color='r', ls='--', label=f'ε={epsilon}')
-ax.set_title('|g - target|'); ax.set_xlabel('r'); ax.legend()
+ax.axhline(epsilon, color='r', ls='--', label=fr'$\varepsilon={epsilon}$')
+ax.set_title(r'Gravity Deviation from Uniform $||g(r) - g_0||/||g_0||$')
+ax.set_xlabel(r'$r$')
+ax.legend()
 ax.set_ylim([0, 1.1 * epsilon])
 
 plt.tight_layout()
@@ -211,12 +210,12 @@ fig.text(0.01, 0.01, text:=f'n_src={n_src}  n_obs={n_obs}  n_z={n_z} smooth={smo
          fontsize=8, color='gray', va='bottom', ha='left')
 print(text)
 ts = datetime.now(UTC).isoformat()
-plt.savefig('/www/flatearth/minmass.png', dpi=75)
-plt.savefig(f'/www/flatearth/archive/minmass_{ts}.png', dpi=150)
-print("Saved to /www/flatearth/minmass.png")
+plt.savefig(f'{outdir}/minmass.png', dpi=75)
+plt.savefig(f'{outdir}/archive/minmass_{ts}.png', dpi=150)
+print(f"Saved to {outdir}/minmass.png")
 
 # save settings and error for later reference
-with open('/www/flatearth/minmass.tsv', 'a') as f:
+with open(f'{outdir}/minmass.tsv', 'a') as f:
     variables = [
         mass_final, epsilon, err_np.max(),
         disk_r, g0, epsilon, n_src, n_obs,
@@ -225,19 +224,17 @@ with open('/www/flatearth/minmass.tsv', 'a') as f:
     f.write('\t'.join(map(str, variables)) + '\n')
 
 
-for f in ['/www/flatearth_results.npz', f'/www/flatearth/archive_vars/{ts}.npz']:
-    np.savez(
-        f,
-        b_opt=b_np, r_src=r_src_np,
-        gz=gz_np, gr=gr_np, err=err_np, r_obs=r_obs_np,
-        epsilon=np.float64(epsilon),
-        g0=np.float64(g0),
-        disk_r=np.float64(disk_r),
-        n_src=np.int32(n_src),
-        n_obs=np.int32(n_obs),
-        n_z=np.int32(n_z),
-        smoothing=np.float64(smoothing),
-        R_ext=np.float64(R_ext),
-    )
-print(f"Saved results to /www/flatearth_result.npz")
-
+np.savez(
+    f'{outdir}/archive_vars/{ts}.npz',
+    b_opt=b_np, r_src=r_src_np,
+    gz=gz_np, gr=gr_np, err=err_np, r_obs=r_obs_np,
+    epsilon=np.float64(epsilon),
+    g0=np.float64(g0),
+    disk_r=np.float64(disk_r),
+    n_src=np.int32(n_src),
+    n_obs=np.int32(n_obs),
+    n_z=np.int32(n_z),
+    smoothing=np.float64(smoothing),
+    R_ext=np.float64(R_ext),
+)
+print(f"Saved results to {outdir}/{ts}.npz")

@@ -64,7 +64,7 @@ for ts in TIMESTAMPS:
     ax.axhline(display_epsilon, color='r', ls='--',
                label=fr'$\varepsilon={display_epsilon}$')
     ax.set_ylim([0, 1.1 * display_epsilon])
-    ax.set_title(r'Gravity Deviation $||g(r) - g_0||/||g_0||$')
+    ax.set_title(r'Gravity Deviation from Uniform $||g(r) - g_0||/||g_0||$')
     ax.set_xlabel(r'$r$')
     ax.legend()
 
@@ -72,7 +72,7 @@ for ts in TIMESTAMPS:
     fig.text(0.01, 0.01, label, fontsize=8, color='gray', va='bottom', ha='left')
     plt.tight_layout()
 
-    outpath = f'/www/flatearth/figure_{display_epsilon}.svg'
+    outpath = f'../figures/figure_{display_epsilon}.svg'
     plt.savefig(outpath, dpi=250, bbox_inches='tight')
     print(f"Saved {outpath}")
     plt.close(fig)
