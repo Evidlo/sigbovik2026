@@ -3,7 +3,7 @@
   set text(font: "New Computer Modern", size: 10pt)
   set page(
     paper: "us-letter",
-    margin: (x: 5%, top: 5%, bottom: 5%),
+    margin: (x: 4%, top: 5%, bottom: 4%),
   )
   set math.equation(numbering: "(1)", block: true)
   show math.equation: set block(spacing: 0.65em)

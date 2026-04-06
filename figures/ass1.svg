@@ -26,10 +26,10 @@
      inkscape:document-units="mm"
      showgrid="true"
      inkscape:zoom="1.8959498"
-     inkscape:cx="47.205891"
-     inkscape:cy="82.01694"
-     inkscape:window-width="1594"
-     inkscape:window-height="848"
+     inkscape:cx="46.942171"
+     inkscape:cy="82.016939"
+     inkscape:window-width="1914"
+     inkscape:window-height="1028"
      inkscape:window-x="0"
      inkscape:window-y="49"
      inkscape:window-maximized="1"
@@ -157,7 +157,7 @@
        r="1.0795045" />
     <g
        id="g8461"
-       transform="matrix(0.56457,0,0,0.56457,30.800866,-6.5349666)"
+       transform="matrix(0.56457,0,0,0.56457,33.975868,-17.1183)"
        ns5:version="1.12.0"
        ns5:texconverter="typst"
        ns5:pdfconverter="inkscape"
